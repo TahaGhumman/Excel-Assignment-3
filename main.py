@@ -1,7 +1,10 @@
 import openpyxl as pyxl
+from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
 import re
 
-workBookPath = 'smallAircraftData.xlsx'
+workBookPath = 'mediumAircraftData.xlsx'
+newDataSheetPath = r'wildlifeAnalysis.xlsx'
 print("Loading workbook...")
 
 workBook = pyxl.load_workbook(workBookPath)
@@ -9,12 +12,13 @@ print("Workbook loaded, cleaning data...")
 
 workSheet = workBook.active
 
+wildlifeAnalysis = Workbook()
+
 def getSpeciesName(animalName: str):
     splitAnimalName = animalName.split(",")
 
     if len(splitAnimalName) == 1:
         splitAnimalName = re.split(r"[-;,.\s]\s*", splitAnimalName[0])
-
         
         if splitAnimalName[-1][-1] == "S":
             return splitAnimalName[-1][:-1]
@@ -84,9 +88,36 @@ def returnHighestandTop(someDict: dict, threshold: int = 0):
             topData.append((dataPoint, someDict[dataPoint]))
     
     return highestDataPoints, topData
+
+def writeToExcel(dataList, name, itemName, chartTitle) :
+    wildlifeAnalysis.create_sheet(name)
+    sheet = wildlifeAnalysis[name]
+    sortedList = sorted(dataList)
+    
+    sheet.cell(1,1,itemName)
+    sheet.cell(1,2,"INCIDENTS")
+    
+    row,column = 2,1
+    for item in sortedList :
+        sheet.cell(row,column,item[0])
+        sheet.cell(row,column+1,item[1])
+        row += 1
+        
+    quantity = Reference(sheet, min_col=2, max_col=2, min_row=1, max_row=(len(sortedList)+1))
+    items = Reference(sheet, min_col=1, max_col=1, min_row=2, max_row=(len(sortedList)+1))
+    
+    chart = BarChart()
+    chart.add_data(quantity, titles_from_data = True)
+    chart.set_categories(items)
+    chart.title = chartTitle
+    chart.x_axis.title = itemName
+    chart.y_axis.title = "COLLISIONS"
+    sheet.add_chart(chart,"D1")
+    
+    return
     
 def cleanData():
-    animalsWorksheet, yearWorksheet, monthWorksheet,airlineWorksheet  = workSheet["AF"][1:], workSheet["B"][1:], workSheet["C"][1:], workSheet["F"][1:]
+    animalsWorksheet, yearWorksheet, monthWorksheet, airlineWorksheet = workSheet["AF"][1:], workSheet["B"][1:], workSheet["C"][1:], workSheet["F"][1:]
 
     animalDict, yearDict, monthDict, airlineDict = countAnimals(animalsWorksheet), countItems(yearWorksheet), countItems(monthWorksheet), countItems(airlineWorksheet)
 
@@ -102,5 +133,14 @@ def cleanData():
     print(f"The year(s) with most accidents are: {highestYear}, with {yearDict[highestYear[0]]} incidents total")
     print(f"The month(s) with most accidents are: {highestMonth}, with {monthDict[highestMonth[0]]} incidents total")
     print(f"The airline(s) mostly involved in accidents are: {highestAirline}, with {airlineDict[highestAirline[0]]} incidents total")
+
+
+    writeToExcel(topTenPercentAnimals, 'ChartForAnimals', 'ANIMALS', 'Animals Involved in Aircraft Collisions')
+    writeToExcel(topAirlines, 'ChartForAirlines', 'AIRLINES', 'Airlines Involved in Aircraft Collisions')
+    writeToExcel(allYears, 'ChartForYears', 'YEARS', 'Aircraft Collisions by Year')
+    writeToExcel(allMonths, 'ChartForMonths', 'MONTHS', 'Aircraft Collisions by Month')
+
+    del wildlifeAnalysis['Sheet']
+    wildlifeAnalysis.save(newDataSheetPath)
     
 cleanData()
