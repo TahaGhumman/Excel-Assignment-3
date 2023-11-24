@@ -89,7 +89,7 @@ def returnHighestandTop(someDict: dict, threshold: int = 0):
     
     return highestDataPoints, topData
 
-def writeToExcel(dataList, name, itemName, chartTitle) :
+def writeToExcel(dataList: list, name: str, itemName: str, chartTitle: str) :
     '''
     Function that takes in a multi-dimensional list of data and sorts it alphabetically or ascending, (dependent on integer or string values.)
     The sorted list is then iterated through and placed in to a new excel sheet.
