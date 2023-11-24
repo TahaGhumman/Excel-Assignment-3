@@ -1,46 +1,106 @@
-import pandas as pd
+import openpyxl as pyxl
+import re
 
-df = pd.read_excel("smallAircraftData.xlsx", usecols = ['Species Name', 'Incident Year', 'Incident Month', 'Operator'])
-dataFrame = df.dropna()
-dataList = dataFrame.values.tolist()
+workBookPath = 'smallAircraftData.xlsx'
+print("Loading workbook...")
 
-years, months, airlines, animals = {}, {}, {}, {}
+workBook = pyxl.load_workbook(workBookPath)
+print("Workbook loaded, cleaning data...")
 
-def countItems(dict, column) :
-    for row in range(len(dataList)) :
-        item = dataList[row][column]
-        if item not in dict :
-            dict[item] = 1
-        else :
-            dict[item] += 1
+workSheet = workBook.active
 
-    return dict
+def getSpeciesName(animalName: str):
+    splitAnimalName = animalName.split(",")
 
-def countAnimals(dict, column) :
-    for row in range(len(dataList)) :
-        fullName = dataList[row][column]
-        commonName = fullName.split(' ')
+    if len(splitAnimalName) == 1:
+        splitAnimalName = re.split(r"[-;,.\s]\s*", splitAnimalName[0])
 
-        if commonName[-1] not in dict :
-            dict[commonName[-1]] = 1
-        else :
-            dict[commonName[-1]] += 1
+        
+        if splitAnimalName[-1][-1] == "S":
+            return splitAnimalName[-1][:-1]
+        elif splitAnimalName[-1] == "GEESE":
+            return "GOOSE"
+        
+        return splitAnimalName[-1]
+    else:
+        animals = []
+        for animalNames in splitAnimalName:
+            animalNames = re.split(r"[-;,.\s]\s*", animalNames)
 
-    return dict
+            if animalNames[-1][-1] == "S":
+                 animals.append(animalNames[-1][:-1])
+            elif animalNames[-1] == "GEESE":
+                animals.append("GOOSE")
+            else:
+                animals.append(animalNames[-1])
+        return animals
 
-def maxCount(dict) :
-    for item in dict :
-        if item == max(dict, key=dict.get) :
-            return (item, dict[item])
-    return
+def countAnimals(animalsWorksheet: dict):
+    animalDict = {}
+    for animalData in range(len(animalsWorksheet)): 
+        fullName = animalsWorksheet[animalData].value
 
-countItems(years, 0)
-countItems(months, 1)
-countItems(airlines, 2)
-countAnimals(animals, 3)
+        if fullName == None or fullName == "": fullName = "UNKNOWN"
+        
+        commonName = getSpeciesName(fullName)
 
-print('')
+        if type(commonName) == list:
+            for name in commonName:    
+                if name not in animalDict:
+                    animalDict[name] = 1
+                else :
+                    animalDict[name] += 1
+        else:
+            if commonName not in animalDict:
+                animalDict[commonName] = 1
+            else :
+                animalDict[commonName] += 1
 
-print('Most Collisions: ', maxCount(years), maxCount(months), maxCount(airlines), maxCount(animals))
+    return animalDict
 
-print('')
+def countItems(someWorksheet: dict):
+    countedDict = {}
+    for worksheetData in range(len(someWorksheet)):
+        someValue = someWorksheet[worksheetData].value
+        if someValue in countedDict:
+            countedDict[someValue] += 1
+        else:
+            countedDict[someValue] = 1
+    return countedDict
+
+def returnHighestandTop(someDict: dict, threshold: int = 0):
+
+    highestData = max(someDict, key=someDict.get)
+    highestDataPoints = []
+    topData = []
+    percentage = threshold / 100
+
+    for dataPoint in someDict:
+        if someDict[dataPoint] == someDict[highestData]:
+            highestDataPoints.append(dataPoint)
+            topData.append((dataPoint, someDict[dataPoint]))
+            
+        elif someDict[dataPoint] > (someDict[highestData] * percentage):
+            topData.append((dataPoint, someDict[dataPoint]))
+    
+    return highestDataPoints, topData
+    
+def cleanData():
+    animalsWorksheet, yearWorksheet, monthWorksheet,airlineWorksheet  = workSheet["AF"][1:], workSheet["B"][1:], workSheet["C"][1:], workSheet["F"][1:]
+
+    animalDict, yearDict, monthDict, airlineDict = countAnimals(animalsWorksheet), countItems(yearWorksheet), countItems(monthWorksheet), countItems(airlineWorksheet)
+
+    highestAnimals, topTenPercentAnimals = returnHighestandTop(animalDict, 10)
+    highestYear, allYears = returnHighestandTop(yearDict)
+    highestMonth, allMonths = returnHighestandTop(monthDict)
+    highestAirline, topAirlines = returnHighestandTop(airlineDict)
+
+    if len(airlineDict) > 15:
+        highestAirline, topAirlines = returnHighestandTop(airlineDict, 10)
+
+    print(f"The animals(s) mostly involved in incidents are: {highestAnimals} with {animalDict[highestAnimals[0]]} incidents total.")
+    print(f"The year(s) with most accidents are: {highestYear}, with {yearDict[highestYear[0]]} incidents total")
+    print(f"The month(s) with most accidents are: {highestMonth}, with {monthDict[highestMonth[0]]} incidents total")
+    print(f"The airline(s) mostly involved in accidents are: {highestAirline}, with {airlineDict[highestAirline[0]]} incidents total")
+    
+cleanData()
