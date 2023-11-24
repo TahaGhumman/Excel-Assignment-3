@@ -90,6 +90,15 @@ def returnHighestandTop(someDict: dict, threshold: int = 0):
     return highestDataPoints, topData
 
 def writeToExcel(dataList, name, itemName, chartTitle) :
+    '''
+    Function that takes in a multi-dimensional list of data and sorts it alphabetically or ascending, (dependent on integer or string values.)
+    The sorted list is then iterated through and placed in to a new excel sheet.
+    Once the data placement is finished, the table of values is used to make a bar graph.
+    :params dataList: multi-dimensional array with tuples consisting of a unique item and their occurrences within a dataset.
+            name: name used for the new sheet being created for the data.
+            itemName: name used for the unique items, header for column one, and title for the x-axis of the chart.
+            chartTitle: specific name used for the title of the chart.
+    '''
     wildlifeAnalysis.create_sheet(name)
     sheet = wildlifeAnalysis[name]
     sortedList = sorted(dataList)
